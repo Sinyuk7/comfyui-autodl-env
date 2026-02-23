@@ -55,8 +55,8 @@ ensure_aria2() {
 
 download_model() {
     local url="$1"
-    local out_file="$2"
-    local target_dir="$3"
+    local out_file="${2:-}"
+    local target_dir="${3:-}"
 
     mkdir -p "$target_dir"
 
@@ -117,7 +117,7 @@ fi
 ensure_aria2
 
 if [ "$1" = "-f" ]; then
-    if [ -z "${2-}" ] || [ ! -f "$2" ]; then
+    if [ -z "${2-}" ] || [ ! -f "${2-}" ]; then
         echo "ERROR: missing or non-existent list file" >&2
         exit 2
     fi
