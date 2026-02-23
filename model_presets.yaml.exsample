@@ -1,0 +1,72 @@
+# ==========================================
+# AutoDL 模块化模型预设清单 (2026 策略路由版)
+# ==========================================
+presets:
+
+  # ----------------------------------------
+  # 场景一：HF 单文件精准拉取 (HfStrategy)
+  # ----------------------------------------
+  FLUX.1-schnell:
+    - name: "FLUX.1 UNET"
+      type: "hf"
+      source: "black-forest-labs/FLUX.1-schnell"
+      file: "flux1-schnell.safetensors"
+      target: "unet"
+      
+    - name: "FLUX VAE"
+      type: "hf"
+      source: "black-forest-labs/FLUX.1-schnell"
+      file: "ae.safetensors"
+      target: "vae"
+
+  # ----------------------------------------
+  # 场景二：HF 仓库级过滤拉取 (HfSnapshotStrategy)
+  # 适合拉取 ControlNet 全集或包含多个拆分文件的模型
+  # ----------------------------------------
+  Xinsir-ControlNet-Union:
+    - name: "SDXL ControlNet Union 满血版"
+      type: "hf_snapshot"
+      source: "xinsir/controlnet-union-sdxl-1.0"
+      target: "controlnet"
+      # 利用 kwargs 透传，支持原生列表
+      allow_patterns: 
+        - "*.safetensors"
+        - "config.json"
+      # 显式排斥大体积的非必要文件
+      ignore_patterns:
+        - "*.bin"
+        - "*.pth"
+
+  # ----------------------------------------
+  # 场景三：传统直链高速下载 (UrlStrategy - Aria2c)
+  # 适合 Civitai 或其他外链
+  # ----------------------------------------
+  Detail-Tweaker-Lora:
+    - name: "Add More Details (Lora)"
+      type: "url"
+      source: "https://civitai.com/api/download/models/87153"
+      file: "add_detail.safetensors"
+      target: "loras"
+
+  # ----------------------------------------
+  # 场景四：混合编排部署
+  # 一个预设组内自由混搭多种策略
+  # ----------------------------------------
+  My-SDXL-Starter-Pack:
+    - name: "SDXL Base 模型 (HF快照)"
+      type: "hf_snapshot"
+      source: "stabilityai/stable-diffusion-xl-base-1.0"
+      target: "checkpoints"
+      allow_patterns: ["*.safetensors"]
+      
+    - name: "LCM Lora (单文件)"
+      type: "hf"
+      source: "latent-consistency/lcm-lora-sdxl"
+      file: "pytorch_lora_weights.safetensors"
+      target: "loras"
+      
+    - name: "常用负面 Prompt 嵌入 (直链)"
+      type: "url"
+      source: "https://civitai.com/api/download/models/5637"
+      file: "negative_hand.pt"
+      target: "embeddings"
