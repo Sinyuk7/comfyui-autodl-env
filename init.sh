@@ -53,23 +53,29 @@ else
 fi
 
 # ------------------------------------------
-# 模块 C: 目录与配置映射 (调用子脚本)
+# 模块 C: 目录与配置映射 (调用 Python 脚本)
 # ------------------------------------------
 echo ">>> [4/6] 映射持久化配置文件与构建模型目录..."
 mkdir -p "$ENV_REPO_DIR/workflows"
 
+# 确保 YAML 文件存在
 if [ ! -f "$ENV_REPO_DIR/extra_model_paths.yaml" ]; then
     touch "$ENV_REPO_DIR/extra_model_paths.yaml"
 fi
 
+# 建立映射链接
 ln -sf "$ENV_REPO_DIR/extra_model_paths.yaml" "$COMFYUI_DIR/extra_model_paths.yaml"
 ln -sf "$ENV_REPO_DIR/workflows" "$COMFYUI_DIR/user_workflows"
 
-if [ -f "$ENV_REPO_DIR/setup_models.sh" ]; then
-    bash "$ENV_REPO_DIR/setup_models.sh"
+# 改为直接运行 Python 脚本
+if [ -f "$ENV_REPO_DIR/setup_models.py" ]; then
+    export YAML_PATH="$ENV_REPO_DIR/extra_model_paths.yaml"
+    "$PYTHON_BIN" "$ENV_REPO_DIR/setup_models.py"
 else
-    echo "    -> 提示: 未找到 setup_models.sh，跳过模型目录创建。"
+    echo "    -> ERROR: 未找到 setup_models.py" >&2
 fi
+
+
 
 # ------------------------------------------
 # 模块 D: 插件生态装配 (调用子脚本)
