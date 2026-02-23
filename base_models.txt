@@ -1,0 +1,5 @@
+# base_models.txt - 示例模型清单
+# 格式：url|filename|target_dir
+# 可用 '|' 或空格分隔
+
+https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors|sd_xl_base.safetensors|/root/autodl-tmp/shared_models/checkpoints

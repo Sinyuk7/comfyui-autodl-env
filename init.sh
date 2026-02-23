@@ -118,8 +118,20 @@ SHARED_MODEL_DIR="/root/autodl-tmp/shared_models"
 CKPT_DIR="$SHARED_MODEL_DIR/checkpoints"
 LORA_DIR="$SHARED_MODEL_DIR/loras"
 
-# 示例：下载 SDXL Base 模型 (使用时取消注释并替换为实际直链)
-# download_model "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors" "sd_xl_base.safetensors" "$CKPT_DIR"
+# 示例：下载 SDXL Base 模型 (使用独立的 download.sh)
+# 单次触发示例（不自动运行）：
+# ./download.sh "https://huggingface.co/.../sd_xl_base_1.0.safetensors" sd_xl_base.safetensors "$CKPT_DIR"
+
+# 可选自动下载：当环境变量 AUTO_DOWNLOAD=1 时，init 会尝试读取
+# $ENV_REPO_DIR/base_models.txt 并调用 download.sh 批量下载（参见仓库内示例文件）。
+if [ "${AUTO_DOWNLOAD:-0}" = "1" ]; then
+    if [ -f "$ENV_REPO_DIR/base_models.txt" ]; then
+        echo ">>> AUTO_DOWNLOAD enabled — starting model downloads..."
+        bash "$ENV_REPO_DIR/download.sh" -f "$ENV_REPO_DIR/base_models.txt" || echo "WARNING: download.sh returned non-zero"
+    else
+        echo "NOTICE: AUTO_DOWNLOAD=1 but $ENV_REPO_DIR/base_models.txt not found"
+    fi
+fi
 
 echo ">>> 装配流程全部完成！"
 echo ">>> 请使用以下命令启动服务: python main.py --listen 127.0.0.1 --port 6006"
