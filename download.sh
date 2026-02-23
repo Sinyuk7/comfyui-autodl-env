@@ -109,7 +109,6 @@ process_file() {
     done < "$file"
 }
 
-download_model "$1" "$2" "$3"
 if [ "$#" -eq 0 ]; then
     echo "Usage: $0 <url> | <url> <out_file> | <url> <out_file> <target_dir>  OR  $0 -f models.txt" >&2
     exit 2
