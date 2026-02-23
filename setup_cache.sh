@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==========================================
-# setup_cache.sh - 缓存重定向与数据盘安全迁移
+# setup_cache.sh - 缓存重定向与数据盘安全迁移 (V2.0)
 # ==========================================
 
 set -euo pipefail
@@ -71,4 +71,9 @@ for CACHE_TYPE in "${CACHE_DIRS[@]}"; do
     # 情况 C: 建立最终软链接
     # 使用 -n 防止在已存在的目录链接内嵌套创建
     if [[ ! -e "$OLD_PATH" ]]; then
-        ln -snf "$NEW_PATH" "$OLD
+        ln -snf "$NEW_PATH" "$OLD_PATH"
+        echo "    [LINK] $CACHE_TYPE -> $NEW_PATH 建立完成。"
+    fi
+done
+
+echo ">>> 全部缓存架构迁移/校验完成。当前系统盘负载已优化。"
