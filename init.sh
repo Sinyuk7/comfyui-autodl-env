@@ -106,25 +106,12 @@ if ! apt-get update || ! apt-get install -y aria2; then
     exit 1
 fi
 
-# 封装幂等下载函数：仅当文件不存在时触发下载
-download_model() {
-    local url=$1
-    local out_file=$2
-    local target_dir=$3
-    
-    mkdir -p "$target_dir"
-    
-    if [ ! -f "$target_dir/$out_file" ]; then
-        echo "--> 正在高速下载: $out_file"
-        # -x 16: 16线程下载 | -s 16: 16个连接数 | -k 1M: 分块大小
-        aria2c -x 16 -s 16 -k 1M -d "$target_dir" -o "$out_file" "$url"
-    else
-        echo "--> 模型已就绪: $out_file，跳过下载。"
-    fi
-}
-
-# --- 在此配置你需要每次开机自动拉取的模型 ---
-# 用法示例： download_model "直链URL" "保存的文件名" "目标文件夹路径"
+# 模型下载由独立脚本处理：`download.sh`。
+# 原 `download_model` 已移至 download.sh，支持单条下载和批量文件列表。
+# 用法示例（单条）：
+#   ./download.sh "<url>" "<保存文件名>" "<目标文件夹>"
+# 批量文件示例：创建一个 models.txt，格式每行：url|filename|target_dir（或用空格分隔），然后：
+#   ./download.sh -f models.txt
 
 # 修改 init.sh 中的变量定义
 SHARED_MODEL_DIR="/root/autodl-tmp/shared_models"
