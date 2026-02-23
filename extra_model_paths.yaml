@@ -1,0 +1,19 @@
+# 统一模型池配置 (适用于 AutoDL 数据盘)
+autodl_shared:
+  base_path: /root/autodl-tmp/shared_models
+  
+  # 基础生成模型
+  checkpoints: checkpoints/
+  loras: loras/
+  vae: vae/
+  embeddings: embeddings/
+  
+  # 控制与生态模型
+  controlnet: controlnet/
+  clip: clip/
+  clip_vision: clip_vision/
+  upscale_models: upscalers/
+  
+  # 视频与动画 (如果涉及 Veo / AnimateDiff 等工作流)
+  animatediff_models: animatediff/
+  ipadapter: ipadapter/
