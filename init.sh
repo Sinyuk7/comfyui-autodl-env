@@ -4,8 +4,14 @@
 # ComfyUI AutoDL 自动化装配脚本
 # ==========================================
 
-# 1. 开启 AutoDL 学术加速 (提升 GitHub/Pip/下载 速度)
-source /etc/network_turbo
+set -euo pipefail
+
+# 1. 如果存在则开启 AutoDL 学术加速 (提升 GitHub/Pip/下载 速度)
+if [ -f /etc/network_turbo ]; then
+    source /etc/network_turbo
+else
+    echo "NOTICE: /etc/network_turbo not found, skipping network turbo."
+fi
 
 # 2. 定义绝对路径变量
 BASE_DIR="/root/autodl-tmp"
@@ -26,7 +32,35 @@ fi
 
 echo ">>> [2/5] 安装/校验 ComfyUI 核心依赖..."
 cd "$COMFYUI_DIR"
-pip install -r requirements.txt > /dev/null 2>&1
+PYTHON_BIN="$(command -v python || true)"
+
+# --- 在安装 requirements 之前，检查/安装 torch（可切换 desired wheel） ---
+DESIRED_TORCH_INDEX="https://download.pytorch.org/whl/nightly/cu130"
+install_torch_if_needed() {
+    if $PYTHON_BIN -c "import importlib,sys
+try:
+    import torch
+    sys.stdout.write(str(torch.__version__))
+except Exception:
+    raise SystemExit(2)
+" >/dev/null 2>&1; then
+        echo "--> torch appears installed"
+    else
+        echo "--> torch not found or import failed; attempting install from $DESIRED_TORCH_INDEX"
+        if ! pip install --pre torch torchvision torchaudio --index-url "$DESIRED_TORCH_INDEX"; then
+            echo "ERROR: torch install failed" >&2
+            exit 1
+        fi
+    fi
+}
+
+install_torch_if_needed
+
+# 安装其它依赖并在失败时退出并显示错误
+if ! pip install -r requirements.txt; then
+    echo "ERROR: pip install -r requirements.txt failed" >&2
+    exit 1
+fi
 
 # ------------------------------------------
 # 模块 B: 配置与逻辑注入 (Symlink)
@@ -34,9 +68,18 @@ pip install -r requirements.txt > /dev/null 2>&1
 echo ">>> [3/5] 映射持久化配置文件..."
 
 # 强制映射额外模型路径配置
+mkdir -p "$ENV_REPO_DIR"
+
+# 映射 extra_model_paths.yaml（若不存在则创建空文件并映射）
+if [ ! -f "$ENV_REPO_DIR/extra_model_paths.yaml" ]; then
+    touch "$ENV_REPO_DIR/extra_model_paths.yaml"
+fi
 ln -sf "$ENV_REPO_DIR/extra_model_paths.yaml" "$COMFYUI_DIR/extra_model_paths.yaml"
 
 # 映射自定义工作流目录 (在 ComfyUI 内建一个 user_workflows 指向你的仓库)
+if [ ! -d "$ENV_REPO_DIR/workflows" ]; then
+    mkdir -p "$ENV_REPO_DIR/workflows"
+fi
 ln -sf "$ENV_REPO_DIR/workflows" "$COMFYUI_DIR/user_workflows"
 
 # ------------------------------------------
@@ -58,7 +101,10 @@ fi
 echo ">>> [5/5] 校验并下载大模型..."
 
 # 确保 aria2 多线程下载工具已安装
-apt-get install -y aria2 > /dev/null 2>&1
+if ! apt-get update || ! apt-get install -y aria2; then
+    echo "ERROR: failed to install aria2 via apt-get" >&2
+    exit 1
+fi
 
 # 封装幂等下载函数：仅当文件不存在时触发下载
 download_model() {
@@ -100,10 +146,23 @@ BASHRC="/root/.bashrc"
 ALIAS_FILE="$ENV_REPO_DIR/aliases.sh"
 
 # 检查是否已经注入过，防止重复写入
+touch "$BASHRC"
 if ! grep -q "$ALIAS_FILE" "$BASHRC"; then
     echo "" >> "$BASHRC"
     echo "# AutoDL Env Custom Aliases" >> "$BASHRC"
     echo "if [ -f \"$ALIAS_FILE\" ]; then" >> "$BASHRC"
     echo "    source \"$ALIAS_FILE\"" >> "$BASHRC"
     echo "fi" >> "$BASHRC"
+fi
+
+# 创建全局可执行 wrapper `comfy`（避免 alias 未生效的问题）
+if [ -w /usr/local/bin ]; then
+    cat > /usr/local/bin/comfy <<EOF
+#!/bin/bash
+cd "$COMFYUI_DIR"
+exec "$(command -v python)" main.py "$@"
+EOF
+    chmod +x /usr/local/bin/comfy || true
+else
+    echo "NOTICE: /usr/local/bin not writable, skipping comfy wrapper creation"
 fi
