@@ -63,10 +63,13 @@ def run_preset(preset_name: str):
         strategy = STRATEGY_MAP.get(dl_type, STRATEGY_MAP['url'])
         
         # 触发完整生命周期
+        # 避免重复传入 'source'（来自 item 和显式参数）导致的 TypeError
+        call_kwargs = dict(item)
+        call_kwargs.pop('source', None)
         strategy.execute(
             source=item['source'],
             target_dir=target_dir,
-            **item
+            **call_kwargs
         )
             
     print(f">>> 预设 {preset_name} 执行完毕。")
