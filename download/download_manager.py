@@ -56,20 +56,22 @@ def run_preset(preset_name: str):
     print(f">>> 启动预设装配: {preset_name}")
 
     for item in items:
-        target_dir = get_target_path(item.get('target', 'checkpoints'))
-        dl_type = item.get('type', 'url')
+        # 1. 弹出核心路由参数，防止后续 **kwargs 重复传参冲突
+        source = item.pop('source')
+        target_key = item.pop('target', 'checkpoints')
+        dl_type = item.pop('type', 'url')
         
-        # 获取对应策略，默认回退到 url 策略
+        # 2. 解析物理路径
+        target_dir = get_target_path(target_key)
+        
+        # 3. 策略路由
         strategy = STRATEGY_MAP.get(dl_type, STRATEGY_MAP['url'])
         
-        # 触发完整生命周期
-        # 避免重复传入 'source'（来自 item 和显式参数）导致的 TypeError
-        call_kwargs = dict(item)
-        call_kwargs.pop('source', None)
+        # 4. 执行生命周期 (此时的 **item 仅包含 file, rename, allow_patterns 等扩展参数)
         strategy.execute(
-            source=item['source'],
+            source=source,
             target_dir=target_dir,
-            **call_kwargs
+            **item
         )
             
     print(f">>> 预设 {preset_name} 执行完毕。")

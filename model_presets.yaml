@@ -1,20 +1,21 @@
 presets:
   FLUX.2-klein-9B:
-    - name: "Unet" # 仅作控制台注释与日志使用，随便写中文
+    - name: "主模型" 
       type: "hf"
       source: "black-forest-labs/FLUX.2-klein-9B"
       file: "flux-2-klein-9b.safetensors"
-      rename: "flux-2-klein-9b.safetensors" # 这里是真正落盘的名字
       target: "unet"
 
-    - name: "VAE"
+    - name: "FLUX VAE"
       type: "hf"
       source: "Comfy-Org/flux2-dev"
       file: "split_files/vae/flux2-vae.safetensors"
+      rename: "flux2-ae.safetensors"   # 明确声明要重命名！
       target: "vae"
 
-    - name: "CLIP"
+    - name: "Qwen CLIP"
       type: "hf"
       source: "Comfy-Org/vae-text-encorder-for-flux-klein-9b"
       file: "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors"
+      # 不写 rename，默认就会落地为 qwen_3_8b_fp8mixed.safetensors
       target: "clip"
