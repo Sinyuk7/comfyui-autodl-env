@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==========================================
-# setup_engine.sh - [2026 增强版]
-# 集成 uv 加速、驱动校验与 HF 高速下载工具链
+# setup_engine.sh - [2026 修正版]
+# 修复 uv 环境权限问题，加入 --system 参数
 # ==========================================
 
 set -euo pipefail
@@ -22,7 +22,7 @@ if ! command -v uv >/dev/null 2>&1; then
     source $HOME/.cargo/env
 fi
 
-# 驱动版本校验 (针对 CUDA 13.0)
+# 驱动版本校验
 DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -n 1)
 DRIVER_MAJOR=$(echo "$DRIVER_VERSION" | awk -F'.' '{print $1}')
 if [ "$DRIVER_MAJOR" -lt 580 ]; then
@@ -39,12 +39,12 @@ else
 fi
 
 echo ">>> [3/6] 安装/更新高速工具链 (uv-managed)..."
-# 安装独立工具 (用于终端手动下载与登录)
+# uv tool 独立管理环境，无需 --system
 uv tool install hf --force
 uv tool install huggingface-hub --force
 
-# 安装 ComfyUI 运行所需的 Python 库 (使用 uv pip 加速)
-uv pip install -U huggingface_hub hf_transfer
+# 安装到系统/Conda环境需添加 --system
+uv pip install --system -U huggingface_hub hf_transfer
 
 cd "$COMFYUI_DIR"
 
@@ -55,10 +55,12 @@ if "$PYTHON_BIN" -c "$CHECK_CU130_CMD" >/dev/null 2>&1; then
     echo "    -> torch (cu130+) 已就绪。"
 else
     echo "    -> 正在升级 PyTorch 环境至 cu130..."
-    uv pip install --upgrade --pre torch torchvision torchaudio --index-url "$DESIRED_TORCH_INDEX"
+    # 添加 --system 参数
+    uv pip install --system --upgrade --pre torch torchvision torchaudio --index-url "$DESIRED_TORCH_INDEX"
 fi
 
 echo ">>> [5/6] 安装 ComfyUI 核心依赖..."
-uv pip install -r requirements.txt
+# 添加 --system 参数
+uv pip install --system -r requirements.txt
 
 echo ">>> 核心引擎部署完成。"
