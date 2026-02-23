@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==========================================
-# HuggingFace 自动化下载工具 (2026 满血版)
+# HuggingFace 自动化下载工具 (2026 满血自清理版)
 # ==========================================
 
 set -euo pipefail
@@ -42,7 +42,7 @@ clear_repo_lock() {
     fi
 }
 
-# 判断下载模式 (文件名为空则为 snapshot)
+# 判断下载模式
 is_snapshot() {
     local file="$1"
     [ -z "$file" ] && return 0
@@ -77,7 +77,13 @@ download_snapshot() {
     [ -n "$include" ] && cmd+=(--include "$include")
     [ -n "$exclude" ] && cmd+=(--exclude "$exclude")
 
+    # 执行下载
     "${cmd[@]}"
+
+    # --- 新增：自动化空间回收 ---
+    echo "--> [CLEAN] 下载成功，正在回收缓存空间..."
+    # 构造 hf cache rm 需要的 ID 格式，例如 model/repo_id
+    "$HF_BIN" cache rm "${repo_type:-model}/$repo" --yes >/dev/null 2>&1 || true
 }
 
 download_file() {
@@ -93,7 +99,6 @@ download_file() {
     local out_file
     out_file="$(basename "$file")"
 
-    # 跳过检查 (简单文件大小校验可在此扩展)
     if [ -f "$target_dir/$out_file" ]; then
         echo "--> [Skip] 文件已存在: $out_file"
         return 0
@@ -101,11 +106,16 @@ download_file() {
 
     echo "--> [File] 正在下载: $repo/$file"
 
+    # 执行下载
     "$HF_BIN" download "$repo" "$file" \
         --repo-type "$repo_type" \
         --revision "$revision" \
         --local-dir "$target_dir" \
         --local-dir-use-symlinks False
+
+    # --- 新增：自动化空间回收 ---
+    echo "--> [CLEAN] 下载成功，正在回收缓存空间..."
+    "$HF_BIN" cache rm "${repo_type:-model}/$repo" --yes >/dev/null 2>&1 || true
 }
 
 download_model() {
@@ -121,7 +131,6 @@ download_model() {
     [ -z "$target" ] && target="$DEFAULT_BASE_PATH"
 
     if is_snapshot "$file"; then
-        # Snapshot 模式自动下进以 repo 名命名的子目录
         download_snapshot "$repo" "$target/$repo" "$repo_type" "$revision" "$include" "$exclude"
     else
         download_file "$repo" "$file" "$target" "$repo_type" "$revision"
@@ -133,7 +142,6 @@ download_model() {
 process_manifest() {
     local manifest="$1"
     while IFS='|' read -r repo file target type rev inc exc || [ -n "$repo" ]; do
-        # 清理空格和注释
         repo=$(echo "$repo" | xargs); [[ -z "$repo" || "$repo" == \#* ]] && continue
         file=$(echo "$file" | xargs)
         target=$(echo "$target" | xargs)
