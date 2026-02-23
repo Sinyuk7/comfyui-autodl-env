@@ -31,6 +31,21 @@ THREADS=${DOWNLOAD_THREADS:-16}
 CONNS=${DOWNLOAD_CONNS:-16}
 CHUNK=${DOWNLOAD_CHUNK:-1M}
 
+# 脚本与仓库位置（用于寻找 extra_model_paths.yaml）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_REPO_DIR="${ENV_REPO_DIR:-$SCRIPT_DIR}"
+
+# 解析仓库中的 extra_model_paths.yaml，优先使用其中的 base_path
+DEFAULT_BASE_PATH="/root/autodl-tmp/shared_models"
+if [ -f "$ENV_REPO_DIR/extra_model_paths.yaml" ]; then
+    bp=$(awk -F": " '/base_path/ {print $2; exit}' "$ENV_REPO_DIR/extra_model_paths.yaml" || true)
+    if [ -n "$bp" ]; then
+        # 去掉末尾斜杠
+        bp="${bp%/}"
+        DEFAULT_BASE_PATH="$bp"
+    fi
+fi
+
 ensure_aria2() {
     if ! command -v aria2c >/dev/null 2>&1; then
         echo "ERROR: 未检测到 aria2c，请先安装 (例如: apt-get install -y aria2)" >&2
@@ -66,23 +81,37 @@ process_file() {
         case "$line" in
             \#*) continue ;;
         esac
-        #支持 | 分隔或空格分隔
+        # 支持 | 分隔或空格分隔；允许只写 URL（此时默认文件名为 basename，目标目录为 DEFAULT_BASE_PATH）
         if echo "$line" | grep -q "|"; then
             IFS='|' read -r url out target <<< "$line"
         else
-            # split by whitespace into 3 parts
+            # split by whitespace into up to 3 parts
             read -r url out target <<< "$line"
         fi
-        if [ -z "$target" ] || [ -z "$out" ] || [ -z "$url" ]; then
-            echo "WARN: invalid line: $line" >&2
+
+        # 清理字段
+        url="${url:-}"
+        out="${out:-}"
+        target="${target:-}"
+
+        if [ -z "$url" ]; then
+            echo "WARN: invalid line (no url): $line" >&2
             continue
         fi
+        if [ -z "$out" ]; then
+            out="$(basename "$url")"
+        fi
+        if [ -z "$target" ]; then
+            target="$DEFAULT_BASE_PATH"
+        fi
+
         download_model "$url" "$out" "$target"
     done < "$file"
 }
 
+download_model "$1" "$2" "$3"
 if [ "$#" -eq 0 ]; then
-    echo "Usage: $0 <url> <out_file> <target_dir>  OR  $0 -f models.txt" >&2
+    echo "Usage: $0 <url> | <url> <out_file> | <url> <out_file> <target_dir>  OR  $0 -f models.txt" >&2
     exit 2
 fi
 
@@ -97,11 +126,20 @@ if [ "$1" = "-f" ]; then
     exit 0
 fi
 
-# single download
-if [ "$#" -ne 3 ]; then
-    echo "ERROR: expected 3 arguments for single download" >&2
-    echo "Usage: $0 <url> <out_file> <target_dir>" >&2
-    exit 2
+# 单条下载：支持 1~3 参数
+if [ "$#" -ge 1 ] && [ "$#" -le 3 ]; then
+    url="$1"
+    out="${2-}"
+    target="${3-}"
+    if [ -z "$out" ]; then
+        out="$(basename "$url")"
+    fi
+    if [ -z "$target" ]; then
+        target="$DEFAULT_BASE_PATH"
+    fi
+    download_model "$url" "$out" "$target"
+    exit $?
 fi
 
-download_model "$1" "$2" "$3"
+echo "ERROR: invalid arguments" >&2
+exit 2

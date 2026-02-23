@@ -113,14 +113,10 @@ fi
 # 批量文件示例：创建一个 models.txt，格式每行：url|filename|target_dir（或用空格分隔），然后：
 #   ./download.sh -f models.txt
 
-# 修改 init.sh 中的变量定义
-SHARED_MODEL_DIR="/root/autodl-tmp/shared_models"
-CKPT_DIR="$SHARED_MODEL_DIR/checkpoints"
-LORA_DIR="$SHARED_MODEL_DIR/loras"
-
-# 示例：下载 SDXL Base 模型 (使用独立的 download.sh)
-# 单次触发示例（不自动运行）：
-# ./download.sh "https://huggingface.co/.../sd_xl_base_1.0.safetensors" sd_xl_base.safetensors "$CKPT_DIR"
+# 默认下载目录由 `extra_model_paths.yaml` 中 `autodl_shared.base_path` 控制，
+# 若不存在该文件或未设置 base_path 将回退到 `/root/autodl-tmp/shared_models`。
+# 示例：单次触发（不自动运行）：
+# ./download.sh "https://huggingface.co/.../sd_xl_base_1.0.safetensors"
 
 # 可选自动下载：当环境变量 AUTO_DOWNLOAD=1 时，init 会尝试读取
 # $ENV_REPO_DIR/base_models.txt 并调用 download.sh 批量下载（参见仓库内示例文件）。
