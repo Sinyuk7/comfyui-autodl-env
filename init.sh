@@ -6,158 +6,155 @@
 
 set -euo pipefail
 
-# 1. 如果存在则开启 AutoDL 学术加速 (提升 GitHub/Pip/下载 速度)
+# 1. 网络加速与环境变量隔离
+export HF_HUB_ENABLE_HF_TRANSFER="1"
+
 if [ -f /etc/network_turbo ]; then
     source /etc/network_turbo
+    echo ">>> 已开启 AutoDL 学术加速 (代理模式)"
+    # 取消镜像强制设定，走代理直连官方
+    unset HF_ENDPOINT 
 else
-    echo "NOTICE: /etc/network_turbo not found, skipping network turbo."
+    echo "NOTICE: 未检测到学术加速，启用 hf-mirror.com 国内镜像降级..."
+    export HF_ENDPOINT="https://hf-mirror.com"
 fi
+
 
 # 2. 定义绝对路径变量
 BASE_DIR="/root/autodl-tmp"
 COMFYUI_DIR="$BASE_DIR/ComfyUI"
 ENV_REPO_DIR="$BASE_DIR/comfyui-autodl-env"
+OLD_CACHE_DIR="/root/.cache"
+NEW_CACHE_DIR="$BASE_DIR/.cache"
 
-echo ">>> 开始执行模块化装配..."
+# 3. 环境变量与缓存隔离
+export PIP_CACHE_DIR="$NEW_CACHE_DIR/pip"
+export HF_HOME="$NEW_CACHE_DIR/huggingface"
+export HF_HUB_ENABLE_HF_TRANSFER="1"
+
+echo ">>> 开始执行模块化装配 (幂等模式)..."
 
 # ------------------------------------------
-# 模块 A: 核心引擎部署
+# 模块 A: 缓存迁移与兜底 (安全模式)
 # ------------------------------------------
-if [ ! -d "$COMFYUI_DIR" ]; then
-    echo ">>> [1/5] 正在克隆 ComfyUI 官方仓库..."
-    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR"
-else
-    echo ">>> [1/5] ComfyUI 目录已存在，跳过克隆。"
-fi
+echo ">>> [1/6] 检查并迁移系统盘残留缓存..."
+mkdir -p "$OLD_CACHE_DIR" "$PIP_CACHE_DIR" "$HF_HOME"
 
-echo ">>> [2/5] 安装/校验 ComfyUI 核心依赖..."
-cd "$COMFYUI_DIR"
-PYTHON_BIN="$(command -v python || true)"
-
-# --- 在安装 requirements 之前，检查/安装 torch（可切换 desired wheel） ---
-DESIRED_TORCH_INDEX="https://download.pytorch.org/whl/nightly/cu130"
-install_torch_if_needed() {
-    if $PYTHON_BIN -c "import importlib,sys
-try:
-    import torch
-    sys.stdout.write(str(torch.__version__))
-except Exception:
-    raise SystemExit(2)
-" >/dev/null 2>&1; then
-        echo "--> torch appears installed"
-    else
-        echo "--> torch not found or import failed; attempting install from $DESIRED_TORCH_INDEX"
-        if ! pip install --pre torch torchvision torchaudio --index-url "$DESIRED_TORCH_INDEX"; then
-            echo "ERROR: torch install failed" >&2
+for CACHE_TYPE in "pip" "huggingface"; do
+    OLD_PATH="$OLD_CACHE_DIR/$CACHE_TYPE"
+    NEW_PATH="$NEW_CACHE_DIR/$CACHE_TYPE"
+    
+    if [ -d "$OLD_PATH" ] && [ ! -L "$OLD_PATH" ]; then
+        echo "    -> 发现旧系统盘缓存 $CACHE_TYPE，正在安全迁移至数据盘..."
+        # 严格校验：仅当复制成功后，才删除原文件，防止跨盘迁移丢数据
+        if cp -a "$OLD_PATH/." "$NEW_PATH/"; then
+            rm -rf "$OLD_PATH"
+            ln -sf "$NEW_PATH" "$OLD_PATH"
+        else
+            echo "ERROR: $CACHE_TYPE 缓存迁移失败，中止执行" >&2
             exit 1
         fi
+    elif [ ! -e "$OLD_PATH" ]; then
+        ln -sf "$NEW_PATH" "$OLD_PATH"
     fi
-}
+done
 
-install_torch_if_needed
+# ------------------------------------------
+# 模块 B: 核心引擎部署
+# ------------------------------------------
+if [ ! -d "$COMFYUI_DIR" ]; then
+    echo ">>> [2/6] 正在克隆 ComfyUI 官方仓库..."
+    git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR"
+else
+    echo ">>> [2/6] ComfyUI 目录已存在，跳过克隆。"
+fi
 
-# 安装其它依赖并在失败时退出并显示错误
-if ! pip install -r requirements.txt; then
-    echo "ERROR: pip install -r requirements.txt failed" >&2
-    exit 1
+echo ">>> [3/6] 安装/校验核心依赖与 HF 工具..."
+PYTHON_BIN="$(command -v python || true)"
+
+if ! pip install -U huggingface_hub hf_transfer >/dev/null 2>&1; then
+    echo "WARNING: HF tools install failed"
+fi
+
+cd "$COMFYUI_DIR"
+
+DESIRED_TORCH_INDEX="https://download.pytorch.org/whl/nightly/cu130"
+if $PYTHON_BIN -c "import torch" >/dev/null 2>&1; then
+    echo "    -> torch appears installed"
+else
+    echo "    -> torch not found; attempting install..."
+    if ! pip install --pre torch torchvision torchaudio --index-url "$DESIRED_TORCH_INDEX"; then
+        echo "ERROR: torch install failed" >&2
+        exit 1
+    fi
+fi
+
+if ! pip install -r requirements.txt >/dev/null 2>&1; then
+    echo "WARNING: requirements.txt install failed"
 fi
 
 # ------------------------------------------
-# 模块 B: 配置与逻辑注入 (Symlink)
+# 模块 C: 配置与逻辑注入
 # ------------------------------------------
-echo ">>> [3/5] 映射持久化配置文件..."
+echo ">>> [4/6] 映射持久化配置文件..."
+mkdir -p "$ENV_REPO_DIR/workflows"
 
-# 强制映射额外模型路径配置
-mkdir -p "$ENV_REPO_DIR"
-
-# 映射 extra_model_paths.yaml（若不存在则创建空文件并映射）
 if [ ! -f "$ENV_REPO_DIR/extra_model_paths.yaml" ]; then
     touch "$ENV_REPO_DIR/extra_model_paths.yaml"
 fi
-ln -sf "$ENV_REPO_DIR/extra_model_paths.yaml" "$COMFYUI_DIR/extra_model_paths.yaml"
 
-# 映射自定义工作流目录 (在 ComfyUI 内建一个 user_workflows 指向你的仓库)
-if [ ! -d "$ENV_REPO_DIR/workflows" ]; then
-    mkdir -p "$ENV_REPO_DIR/workflows"
-fi
+ln -sf "$ENV_REPO_DIR/extra_model_paths.yaml" "$COMFYUI_DIR/extra_model_paths.yaml"
 ln -sf "$ENV_REPO_DIR/workflows" "$COMFYUI_DIR/user_workflows"
 
 # ------------------------------------------
-# 模块 C: 插件生态装配
+# 模块 D: 插件生态装配
 # ------------------------------------------
-echo ">>> [4/5] 拉取 Custom Nodes..."
+echo ">>> [5/6] 校验 Custom Nodes..."
 MANAGER_DIR="$COMFYUI_DIR/custom_nodes/ComfyUI-Manager"
 
 if [ ! -d "$MANAGER_DIR" ]; then
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git "$MANAGER_DIR"
-    # 后续若有其他插件，可在此处继续追加 git clone
 else
-    echo ">>> ComfyUI-Manager 已存在，跳过。"
+    echo "    -> ComfyUI-Manager 已存在，跳过。"
+fi
+
+if ! command -v aria2c >/dev/null 2>&1; then
+    apt-get update -qq && apt-get install -y -qq aria2 >/dev/null 2>&1 || true
 fi
 
 # ------------------------------------------
-# 模块 D: 重资产(模型)自动化拉取
+# 模块 E: Shell 环境闭环注入
 # ------------------------------------------
-echo ">>> [5/5] 校验并下载大模型..."
-
-# 确保 aria2 多线程下载工具已安装
-if ! apt-get update || ! apt-get install -y aria2; then
-    echo "ERROR: failed to install aria2 via apt-get" >&2
-    exit 1
-fi
-
-# 模型下载由独立脚本处理：`download.sh`。
-# 原 `download_model` 已移至 download.sh，支持单条下载和批量文件列表。
-# 用法示例（单条）：
-#   ./download.sh "<url>" "<保存文件名>" "<目标文件夹>"
-# 批量文件示例：创建一个 models.txt，格式每行：url|filename|target_dir（或用空格分隔），然后：
-#   ./download.sh -f models.txt
-
-# 默认下载目录由 `extra_model_paths.yaml` 中 `autodl_shared.base_path` 控制，
-# 若不存在该文件或未设置 base_path 将回退到 `/root/autodl-tmp/shared_models`。
-# 示例：单次触发（不自动运行）：
-# ./download.sh "https://huggingface.co/.../sd_xl_base_1.0.safetensors"
-
-# 可选自动下载：当环境变量 AUTO_DOWNLOAD=1 时，init 会尝试读取
-# $ENV_REPO_DIR/base_models.txt 并调用 download.sh 批量下载（参见仓库内示例文件）。
-if [ "${AUTO_DOWNLOAD:-0}" = "1" ]; then
-    if [ -f "$ENV_REPO_DIR/base_models.txt" ]; then
-        echo ">>> AUTO_DOWNLOAD enabled — starting model downloads..."
-        bash "$ENV_REPO_DIR/download.sh" -f "$ENV_REPO_DIR/base_models.txt" || echo "WARNING: download.sh returned non-zero"
-    else
-        echo "NOTICE: AUTO_DOWNLOAD=1 but $ENV_REPO_DIR/base_models.txt not found"
-    fi
-fi
-
-echo ">>> 装配流程全部完成！"
-echo ">>> 请使用以下命令启动服务: python main.py --listen 127.0.0.1 --port 6006"
-
-
-# ------------------------------------------
-# 模块 E: Shell 环境注入
-# ------------------------------------------
-echo ">>> 注入自定义 Shell 配置..."
+echo ">>> [6/6] 注入自定义 Shell 配置..."
 BASHRC="/root/.bashrc"
 ALIAS_FILE="$ENV_REPO_DIR/aliases.sh"
-
-# 检查是否已经注入过，防止重复写入
 touch "$BASHRC"
-if ! grep -q "$ALIAS_FILE" "$BASHRC"; then
-    echo "" >> "$BASHRC"
-    echo "# AutoDL Env Custom Aliases" >> "$BASHRC"
-    echo "if [ -f \"$ALIAS_FILE\" ]; then" >> "$BASHRC"
-    echo "    source \"$ALIAS_FILE\"" >> "$BASHRC"
-    echo "fi" >> "$BASHRC"
+
+if grep -q "# === AutoDL Env Config ===" "$BASHRC"; then
+    sed -i '/# === AutoDL Env Config ===/,/# === AutoDL Env End ===/d' "$BASHRC"
 fi
 
-# 创建全局可执行 wrapper `comfy`（避免 alias 未生效的问题）
+cat << EOF >> "$BASHRC"
+# === AutoDL Env Config ===
+export PIP_CACHE_DIR="$PIP_CACHE_DIR"
+export HF_HOME="$HF_HOME"
+export HF_HUB_ENABLE_HF_TRANSFER="1"
+if [ -n "${HF_ENDPOINT:-}" ]; then
+    export HF_ENDPOINT="$HF_ENDPOINT"
+fi
+if [ -f "$ALIAS_FILE" ]; then
+    source "$ALIAS_FILE"
+fi
+# === AutoDL Env End ===
+EOF
+
 if [ -w /usr/local/bin ]; then
     cat > /usr/local/bin/comfy <<EOF
 #!/bin/bash
 cd "$COMFYUI_DIR"
-exec "$(command -v python)" main.py "$@"
+exec "$(command -v python)" main.py "\$@"
 EOF
     chmod +x /usr/local/bin/comfy || true
-else
-    echo "NOTICE: /usr/local/bin not writable, skipping comfy wrapper creation"
 fi
+
+echo ">>> 装配流程全部完成！"
