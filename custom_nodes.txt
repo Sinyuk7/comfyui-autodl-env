@@ -1,0 +1,7 @@
+# 本地扫描生成的插件清单
+https://github.com/chrisgoringe/cg-use-everywhere
+https://github.com/yolain/ComfyUI-Easy-Use
+https://github.com/kijai/ComfyUI-Florence2.git
+https://github.com/ltdrdata/ComfyUI-Impact-Pack
+https://github.com/rgthree/rgthree-comfy
+https://github.com/zombieyang/sd-ppp

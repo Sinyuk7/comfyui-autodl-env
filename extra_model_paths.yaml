@@ -1,21 +1,15 @@
-# extra_model_paths.yaml
 autodl_shared:
   base_path: /root/autodl-tmp/shared_models
   
   checkpoints: checkpoints/
+  unet: unet/                # 必须添加：对应 Load Diffusion Model 节点
+  diffusion_models: unet/    # 增强兼容性
+  
   loras: loras/
   vae: vae/
-  
-  # --- 必须添加以下两行 ---
-  unet: unet/                # 对应 Load Diffusion Model 节点
-  diffusion_models: unet/    # 增加兼容性别名
-  
-  # 控制与生态
   controlnet: controlnet/
   clip: clip/
   clip_vision: clip_vision/
   upscale_models: upscalers/
-  
-  # 视频
   animatediff_models: animatediff/
   ipadapter: ipadapter/
