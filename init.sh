@@ -155,13 +155,24 @@ else
     lsof -ti:6006 | xargs kill -9 >/dev/null 2>&1 || true
 fi
 
-echo ">>> 端口 6006 已释放，正在启动 ComfyUI..."
+echo ">>> 端口 6006 已释放。"
 
-# 2. 启动服务
+# 2. 加载 AutoDL 学术加速环境变量
+if [ -f /etc/network_turbo ]; then
+    source /etc/network_turbo
+    echo ">>> AutoDL 学术加速已启用 (Proxy: $http_proxy)"
+else
+    echo ">>> 未发现 /etc/network_turbo，将以原始网络环境启动。"
+fi
+
+# 3. 启动服务
+echo ">>> 正在启动 ComfyUI..."
 cd "$COMFYUI_DIR"
-exec "$PYTHON_BIN" main.py --port 6006 "\$@"
+
+# 建议增加 --output-directory 参数以方便管理，此处保持你的原样并确保传递所有附加参数 $@
+exec "$PYTHON_BIN" main.py --port 6006 "$@"
 EOF
-    chmod +x /usr/local/bin/comfy || true
+chmod +x /usr/local/bin/comfy || true
 fi
 
 echo ">>> 装配流程全部完成！全局指令 'comfy' 已就绪。"
