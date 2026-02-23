@@ -140,12 +140,24 @@ fi
 EOF
 
 # ------------------------------------------
-# 模块 G: 全局指令装配
+# 模块 G: 全局指令装配 (防端口冲突版)
 # ------------------------------------------
 echo ">>> [7/7] 构建全局 'comfy' 指令..."
 if [ -w /usr/local/bin ]; then
     cat > /usr/local/bin/comfy <<EOF
 #!/bin/bash
+
+# 1. 释放 6006 端口 (静默击杀占用该端口的进程)
+if command -v fuser >/dev/null 2>&1; then
+    fuser -k 6006/tcp >/dev/null 2>&1 || true
+else
+    # 备用击杀方案
+    lsof -ti:6006 | xargs kill -9 >/dev/null 2>&1 || true
+fi
+
+echo ">>> 端口 6006 已释放，正在启动 ComfyUI..."
+
+# 2. 启动服务
 cd "$COMFYUI_DIR"
 exec "$PYTHON_BIN" main.py --port 6006 "\$@"
 EOF
