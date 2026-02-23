@@ -7,11 +7,24 @@ from huggingface_hub import hf_hub_download, snapshot_download
 
 class HfStrategy(DownloadStrategy):
     def _clear_locks(self):
-        """清理 HF 锁文件，防止死锁"""
-        hf_home = os.getenv("HF_HOME", "/root/autodl-tmp/.cache/huggingface")
-        lock_dir = Path(hf_home) / "hub" / ".locks"
-        if lock_dir.exists():
-            shutil.rmtree(lock_dir, ignore_errors=True)
+            """清理 HF 锁文件，防止强杀/后台挂起导致的死锁"""
+            # 1. 清理全局 HF 缓存锁
+            hf_home = os.getenv("HF_HOME", "/root/autodl-tmp/.cache/huggingface")
+            global_lock_dir = Path(hf_home) / "hub" / ".locks"
+            if global_lock_dir.exists():
+                shutil.rmtree(global_lock_dir, ignore_errors=True)
+
+            # 2. 清理目标目录下的局部隐形锁 (解决 Traceback 发现的死锁问题)
+            if hasattr(self, 'target_dir') and self.target_dir:
+                local_cache_dir = Path(self.target_dir) / ".cache" / "huggingface"
+                if local_cache_dir.exists():
+                    # 遍历并强制解除所有 .lock 文件
+                    for lock_file in local_cache_dir.rglob("*.lock"):
+                        try:
+                            lock_file.unlink()
+                            logger.info(f"    [CLEANUP] 解除目标目录局部死锁: {lock_file.name}")
+                        except OSError:
+                            pass
 
     def pre_check(self) -> bool:
         self._clear_locks()
