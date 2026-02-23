@@ -16,3 +16,17 @@ alias dus="du -h --max-depth=1 /root/autodl-tmp | sort -hr"
 
 # Git 快速拉取更新
 alias gpull="git pull origin main --rebase"
+
+# --- 网络与工具增强 ---
+
+# 开启学术加速
+alias turbo='source /etc/network_turbo && echo ">>> 已开启 AutoDL 学术加速 (代理模式)"'
+
+# 关闭学术加速
+alias unturbo='unset http_proxy https_proxy all_proxy && echo ">>> 已关闭学术加速"'
+
+# 快速进行 Hugging Face 登录
+alias hflogin="huggingface-cli login"
+
+# 自动清理 pip 缓存
+alias piclean="pip cache purge"
