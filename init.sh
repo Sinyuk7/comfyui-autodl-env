@@ -84,7 +84,8 @@ if [ -f "$ENV_REPO_DIR/setup_nodes.py" ]; then
     export ENV_REPO_DIR="$ENV_REPO_DIR"
     export PYTHON_BIN="$PYTHON_BIN"
     
-    "$PYTHON_BIN" "$ENV_REPO_DIR/setup_nodes.py"
+    # 必须追加 --init 触发路由
+    "$PYTHON_BIN" "$ENV_REPO_DIR/setup_nodes.py" --init
 else
     echo "    -> 提示: 未找到 setup_nodes.py"
 fi
