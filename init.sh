@@ -149,39 +149,43 @@ fi
 EOF
 
 # ------------------------------------------
-# 模块 G: 全局指令装配 (防端口冲突版)
+# 模块 G: 全局指令装配 (优化版)
 # ------------------------------------------
 echo ">>> [7/7] 构建全局 'comfy' 指令..."
+
+# 自动安装缺失的端口管理工具
+if ! command -v lsof >/dev/null 2>&1 || ! command -v fuser >/dev/null 2>&1; then
+    echo "    -> 安装端口管理工具 (lsof/psmisc)..."
+    apt-get update >/dev/null 2>&1 && apt-get install -y lsof psmisc >/dev/null 2>&1 || true
+fi
+
 if [ -w /usr/local/bin ]; then
     cat > /usr/local/bin/comfy <<EOF
 #!/bin/bash
 
-# 1. 释放 6006 端口 (静默击杀占用该端口的进程)
+# 1. 释放 6006 端口
 if command -v fuser >/dev/null 2>&1; then
     fuser -k 6006/tcp >/dev/null 2>&1 || true
-else
-    # 备用击杀方案
+elif command -v lsof >/dev/null 2>&1; then
     lsof -ti:6006 | xargs kill -9 >/dev/null 2>&1 || true
 fi
 
 echo ">>> 端口 6006 已释放。"
 
-# 2. 加载 AutoDL 学术加速环境变量
+# 2. 加载 AutoDL 学术加速
 if [ -f /etc/network_turbo ]; then
     source /etc/network_turbo
-    echo ">>> AutoDL 学术加速已启用 (Proxy: $http_proxy)"
-else
-    echo ">>> 未发现 /etc/network_turbo，将以原始网络环境启动。"
+    echo ">>> AutoDL 学术加速已启用 (Proxy: \$http_proxy)"
 fi
 
 # 3. 启动服务
 echo ">>> 正在启动 ComfyUI..."
 cd "$COMFYUI_DIR"
 
-# 建议增加 --output-directory 参数以方便管理，此处保持你的原样并确保传递所有附加参数 $@
-exec "$PYTHON_BIN" main.py --port 6006 "$@"
+# 关键修复：必须使用 "\$@" 确保传递的是 comfy 指令后的参数
+exec "$PYTHON_BIN" main.py --port 6006 "\$@"
 EOF
-chmod +x /usr/local/bin/comfy || true
+    chmod +x /usr/local/bin/comfy || true
 fi
 
 echo ">>> 装配流程全部完成！全局指令 'comfy' 已就绪。"
