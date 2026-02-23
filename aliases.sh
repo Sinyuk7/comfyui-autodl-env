@@ -33,6 +33,6 @@ alias hfsync='python /root/autodl-tmp/comfyui-autodl-env/setup_models.py'
 alias hflogin="hf auth login"
 
 
-# --- 自动化关机同步 ---
-# 逻辑：开启加速 -> 运行同步脚本 -> 提示结果 -> 关机
-alias bye='source /etc/network_turbo && python /root/autodl-tmp/comfyui-autodl-env/shutdown.py && echo ">>> 同步任务已结束，5秒后关闭实例..." && sleep 5 && shutdown'
+# --- 离线同步工具 ---
+# 仅执行同步逻辑，不关闭机器
+alias bye='source /etc/network_turbo && python /root/autodl-tmp/comfyui-autodl-env/shutdown.py'
