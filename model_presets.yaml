@@ -1,13 +1,15 @@
 presets:
-  FLUX.1-schnell:
-    - name: "FLUX.1 UNET"
+  FLUX.2-klein-9B:
+    - name: "主模型: FLUX.2-klein-9B"       # 仅作控制台注释与日志使用，随便写中文
       type: "hf"
-      source: "black-forest-labs/FLUX.1-schnell"
-      file: "flux1-schnell.safetensors"
+      source: "black-forest-labs/FLUX.2-klein-9B"
+      file: "flux-2-klein-9b.safetensors"
+      rename: "flux-2-klein-9b.safetensors" # 这里是真正落盘的名字
       target: "unet"
 
-    - name: "FLUX VAE"
+    - name: "必备组件: FLUX VAE 模型" 
       type: "hf"
-      source: "black-forest-labs/FLUX.1-schnell"
-      file: "ae.safetensors"
+      source: "Comfy-Org/flux2-dev"              
+      file: "split_files/vae/flux2-vae.safetensors"          
+      rename: "flux2-vae.safetensors"        # 完美解决嵌套与重命名
       target: "vae"
