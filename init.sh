@@ -90,22 +90,24 @@ else
     echo "    -> 提示: 未找到 setup_nodes.py"
 fi
 
-# ------------------------------------------
-# 模块 E: 个人偏好与 Manager 配置同步 (新增)
-# ------------------------------------------
-echo ">>> [5/7] 正在同步本地 UI 偏好与 Manager 配置..."
+# --- 模块 E: 个人偏好与工作流同步 ---
+echo ">>> [5/7] 正在同步本地 UI 偏好与工作流..."
 
-# 物理路径准备
+# 1. 物理路径准备
 mkdir -p "$COMFYUI_DIR/user/default"
 mkdir -p "$COMFYUI_DIR/user/__manager"
 
-# 1. 映射 UI 设置与快捷键 (不含工作流)
-[ -f "$ENV_REPO_DIR/configs/user/comfy.settings.json" ] && ln -sf "$ENV_REPO_DIR/configs/user/comfy.settings.json" "$COMFYUI_DIR/user/default/comfy.settings.json"
-[ -f "$ENV_REPO_DIR/configs/user/comfy.shortcuts.json" ] && ln -sf "$ENV_REPO_DIR/configs/user/comfy.shortcuts.json" "$COMFYUI_DIR/user/default/comfy.shortcuts.json"
+# 2. 核心：将仓库的 workflows 目录挂载到 ComfyUI 默认工作流路径
+# 如果已存在物理目录则先删除，确保软链接建立成功
+if [ -d "$COMFYUI_DIR/user/default/workflows" ] && [ ! -L "$COMFYUI_DIR/user/default/workflows" ]; then
+    cp -r "$COMFYUI_DIR/user/default/workflows/." "$ENV_REPO_DIR/workflows/" || true
+    rm -rf "$COMFYUI_DIR/user/default/workflows"
+fi
+ln -sf "$ENV_REPO_DIR/workflows" "$COMFYUI_DIR/user/default/workflows"
 
-# 2. 映射 Manager 核心配置 (不含下载代理)
-[ -f "$ENV_REPO_DIR/configs/manager/config.ini" ] && ln -sf "$ENV_REPO_DIR/configs/manager/config.ini" "$COMFYUI_DIR/user/__manager/config.ini"
-[ -f "$ENV_REPO_DIR/configs/manager/channels.list" ] && ln -sf "$ENV_REPO_DIR/configs/manager/channels.list" "$COMFYUI_DIR/user/__manager/channels.list"
+# 3. 映射 UI 设置
+[ -f "$ENV_REPO_DIR/configs/user/comfy.settings.json" ] && ln -sf "$ENV_REPO_DIR/configs/user/comfy.settings.json" "$COMFYUI_DIR/user/default/comfy.settings.json"
+
 
 # ------------------------------------------
 # 模块 F: Shell 环境闭环注入 (原模块 E 顺延)
