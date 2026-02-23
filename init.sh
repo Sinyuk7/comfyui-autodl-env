@@ -90,3 +90,20 @@ LORA_DIR="$SHARED_MODEL_DIR/loras"
 
 echo ">>> 装配流程全部完成！"
 echo ">>> 请使用以下命令启动服务: python main.py --listen 127.0.0.1 --port 6006"
+
+
+# ------------------------------------------
+# 模块 E: Shell 环境注入
+# ------------------------------------------
+echo ">>> 注入自定义 Shell 配置..."
+BASHRC="/root/.bashrc"
+ALIAS_FILE="$ENV_REPO_DIR/aliases.sh"
+
+# 检查是否已经注入过，防止重复写入
+if ! grep -q "$ALIAS_FILE" "$BASHRC"; then
+    echo "" >> "$BASHRC"
+    echo "# AutoDL Env Custom Aliases" >> "$BASHRC"
+    echo "if [ -f \"$ALIAS_FILE\" ]; then" >> "$BASHRC"
+    echo "    source \"$ALIAS_FILE\"" >> "$BASHRC"
+    echo "fi" >> "$BASHRC"
+fi
