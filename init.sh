@@ -120,7 +120,7 @@ if [ -w /usr/local/bin ]; then
     cat > /usr/local/bin/comfy <<EOF
 #!/bin/bash
 cd "$COMFYUI_DIR"
-exec "$PYTHON_BIN" main.py "\$@"
+exec "$PYTHON_BIN" main.py --port 6006 "\$@"
 EOF
     chmod +x /usr/local/bin/comfy || true
 fi
