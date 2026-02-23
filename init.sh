@@ -112,7 +112,14 @@ ln -sf "$ENV_REPO_DIR/workflows" "$COMFYUI_DIR/user/default/workflows"
 # ------------------------------------------
 # 模块 F: Shell 环境闭环注入 (原模块 E 顺延)
 # ------------------------------------------
-echo ">>> [6/7] 注入自定义 Shell 配置..."
+echo ">>> [6/7] 注入自定义 Shell 配置与 Git 身份..."
+
+# 注入 Git 身份配置
+git config --global user.email "sinyuk.7@gmail.com"
+git config --global user.name "Sinyuk"
+echo "    -> Git 身份已配置为: Sinyuk <sinyuk.7@gmail.com>"
+
+
 BASHRC="/root/.bashrc"
 ALIAS_FILE="$ENV_REPO_DIR/aliases.sh"
 touch "$BASHRC"
