@@ -12,7 +12,9 @@ CONNS=${DOWNLOAD_CONNS:-16}
 CHUNK=${DOWNLOAD_CHUNK:-1M}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_REPO_DIR="${ENV_REPO_DIR:-$SCRIPT_DIR}"
+# 因为在 download 子目录，需要取其父目录作为仓库根目录
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+ENV_REPO_DIR="${ENV_REPO_DIR:-$REPO_ROOT}"
 
 DEFAULT_BASE_PATH="/root/autodl-tmp/shared_models"
 if [ -f "$ENV_REPO_DIR/extra_model_paths.yaml" ]; then

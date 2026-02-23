@@ -11,7 +11,9 @@ export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
 export HF_HUB_DISABLE_PROGRESS_BARS="${HF_HUB_DISABLE_PROGRESS_BARS:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_REPO_DIR="${ENV_REPO_DIR:-$SCRIPT_DIR}"
+# 因为在 download 子目录，需要取其父目录作为仓库根目录
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+ENV_REPO_DIR="${ENV_REPO_DIR:-$REPO_ROOT}"
 HF_BIN="${HF_BIN:-hf}"
 
 # 默认基础路径 (解析 yaml 逻辑)

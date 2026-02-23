@@ -1,0 +1,30 @@
+# model_presets.yaml
+presets:
+  FLUX.2-klein:
+    - name: "FLUX.2 UNET"
+      source: "black-forest-labs/FLUX.2-klein-9B"
+      file: "flux-2-klein-9b.safetensors"
+      target: "unet"
+      type: "hf"
+    - name: "VAE"
+      source: "https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors"
+      file: "ae.safetensors"
+      target: "vae"
+      type: "url"
+    - name: "CLIP L"
+      source: "comfyanonymous/flux_text_encoders"
+      file: "clip_l.safetensors"
+      target: "clip"
+      type: "hf"
+    - name: "T5XXL"
+      source: "comfyanonymous/flux_text_encoders"
+      file: "t5xxl_fp8_e4m3fn.safetensors"
+      target: "clip"
+      type: "hf"
+
+  SDXL-Standard:
+    - name: "SDXL Base"
+      source: "stabilityai/stable-diffusion-xl-base-1.0"
+      file: "sd_xl_base_1.0.safetensors"
+      target: "checkpoints"
+      type: "hf"
